@@ -1,12 +1,8 @@
-use bevy::app::{App, FixedUpdate, Startup, Update};
 use bevy::ecs::event::ManualEventReader;
-use bevy::input::ButtonInput;
 use bevy::input::mouse::MouseMotion;
-use bevy::log::error;
-use bevy::math::{EulerRot, Quat, Vec3};
-use bevy::prelude::{Camera, Camera3dBundle, Commands, Component, Events, KeyCode, Query, Res, ResMut, Resource, Time, Transform, Window, With};
+use bevy::prelude::*;
 use bevy::window::{CursorGrabMode, PrimaryWindow};
-use bevy_rapier3d::math::Vect;
+use bevy_rapier3d::prelude::*;
 
 #[derive(Component)]
 struct FlyCam;
