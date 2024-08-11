@@ -1,75 +1,124 @@
 mod flycam;
 mod player;
+mod health;
+mod cursor;
+mod player_ui;
 
-use bevy::ecs::event::ManualEventReader;
-use bevy::input::mouse::MouseMotion;
+use bevy::pbr::PbrPlugin;
+use bevy::pbr::wireframe::{Wireframe, WireframeConfig, WireframePlugin};
 use bevy::prelude::*;
+use bevy::render::render_asset::RenderAssetUsages;
+use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
 use bevy::window::{CursorGrabMode, PrimaryWindow};
 use bevy_rapier3d::prelude::*;
+use crate::health::{Health, health_plugin};
 
 const GRAVITY: Vect = Vect{x:0.0, y: -9.8, z: 0.0 };
-
-#[derive(Component)]
-struct Player;
-
-
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugins(RapierDebugRenderPlugin::default())
-        .add_plugins(flycam::flycam_plugin)
-        .add_systems(Startup, setup_physics)
+        .add_plugins(WireframePlugin)
+        .add_plugins(health_plugin)
+//        .add_plugins(flycam::flycam_plugin)
+        .add_plugins(player::first_person_controller_plugin)
+        .add_systems(Startup, setup_world)
         .add_systems(Startup, setup_player)
-        .add_systems(Update, print_ball_altitude)
-        .add_systems(Update, handle_gravity_for_kinematic_characters)
+        .add_systems(Update, cursor::grab_cursor)
         .run();
 }
 
 fn setup_player(mut commands: Commands) {
-    commands
-        .spawn(Player)
-        .insert(KinematicCharacterController {
-           ..Default::default()
-        })
-        .insert(Collider::capsule(Vect{x: 0.0, y:-0.5, z: 0.0}, Vect{x: 0.0, y:0.5, z:0.0}, 0.25))
-        .insert(SpatialBundle::from_transform(Transform::from_xyz(0.0, 5.0, 0.0)));
+    player::create_player_at_location(&mut commands, Vec3{x: -10.0, y: 2.0, z: 10.0 });
 }
 
-fn setup_physics(mut commands: Commands, mut physics_config: ResMut<RapierConfiguration>) {
+fn setup_world(
+    mut commands: Commands,
+    mut physics_config: ResMut<RapierConfiguration>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut images: ResMut<Assets<Image>>,
+) {
 
+    let debug_material = materials.add(StandardMaterial {
+        base_color_texture: Some(images.add(uv_debug_texture())),
+        ..Default::default()
+    });
     physics_config.gravity = GRAVITY;
 
+    // floor
     commands
         .spawn(Collider::cuboid(100.0, 0.5, 100.0))
-        .insert(TransformBundle::from(Transform::from_xyz(0.0, -4.0, 0.0)));
+        .insert(PbrBundle {
+            transform: Transform::from_xyz(0.0, -4.0, 0.0),
+            mesh: meshes.add(Cuboid {
+                half_size: Vec3{x: 100.0, y: 0.5, z: 100.0},
+            }),
+            material: debug_material.clone(),
+            ..Default::default()
+        });
 
     commands
         .spawn(RigidBody::Dynamic)
         .insert(Collider::ball(0.5))
         .insert(Restitution::coefficient(0.7))
-        .insert(TransformBundle::from(Transform::from_xyz(0.0, 5.0, 0.0)));
+        .insert(Friction::coefficient(14.0))
+        .insert(ColliderMassProperties::Density(2.0))
+        .insert(Damping {
+            linear_damping: 0.0,
+            angular_damping: 1.0,
+        })
+        .insert(PbrBundle {
+            transform: Transform::from_xyz(0.0, 5.0, 0.0),
+            mesh: meshes.add(Sphere::mesh(&Default::default()).uv(32, 18)),
+            material: debug_material.clone(),
+            ..Default::default()
+        })
+        .insert(Health::with_max(100));
+
+    commands.spawn(PointLightBundle {
+        point_light: PointLight {
+            shadows_enabled: true,
+            intensity: 10_000_000.,
+            range: 100.0,
+            shadow_depth_bias: 0.2,
+            ..default()
+        },
+        transform: Transform::from_xyz(8.0, 16.0, 8.0),
+        ..default()
+    });
+
 }
 
-fn print_ball_altitude(mut positions: Query<&mut Transform, With<RigidBody>>) {
-    for mut transform in positions.iter_mut() {
-        dbg!(transform.rotation.to_axis_angle());
-        transform.rotation = Quat::from_rotation_z(270_f32.to_radians());
-    }
-}
+/// Creates a colorful test pattern
+fn uv_debug_texture() -> Image {
+    const TEXTURE_SIZE: usize = 8;
 
-fn handle_gravity_for_kinematic_characters(
-    mut character_controllers: Query<&mut KinematicCharacterController>,
-    time: Res<Time>
-) {
-    for mut controller in character_controllers.iter_mut() {
-        if let Some(mut translation) = controller.translation {
-            translation += GRAVITY * time.delta_seconds();
-        } else {
-            controller.translation = Some(GRAVITY * time.delta_seconds());
-        }
+    let mut palette: [u8; 32] = [
+        255, 102, 159, 255, 255, 159, 102, 255, 236, 255, 102, 255, 121, 255, 102, 255, 102, 255,
+        198, 255, 102, 198, 255, 255, 121, 102, 255, 255, 236, 102, 255, 255,
+    ];
+
+    let mut texture_data = [0; TEXTURE_SIZE * TEXTURE_SIZE * 4];
+    for y in 0..TEXTURE_SIZE {
+        let offset = TEXTURE_SIZE * y * 4;
+        texture_data[offset..(offset + TEXTURE_SIZE * 4)].copy_from_slice(&palette);
+        palette.rotate_right(4);
     }
+
+    Image::new_fill(
+        Extent3d {
+            width: TEXTURE_SIZE as u32,
+            height: TEXTURE_SIZE as u32,
+            depth_or_array_layers: 1,
+        },
+        TextureDimension::D2,
+        &texture_data,
+        TextureFormat::Rgba8UnormSrgb,
+        RenderAssetUsages::RENDER_WORLD,
+    )
 }
 
 

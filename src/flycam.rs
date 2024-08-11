@@ -5,10 +5,10 @@ use bevy::window::{CursorGrabMode, PrimaryWindow};
 use bevy_rapier3d::prelude::*;
 
 #[derive(Component)]
-struct FlyCam;
+pub struct FlyCam;
 
 #[derive(Resource)]
-struct FlyCamSettings {
+pub struct FlyCamSettings {
     speed: f32,
     sensitivity: f32,
 }
@@ -64,33 +64,6 @@ fn handle_fly_cam(
     }
 }
 
-fn toggle_grab_cursor(window: &mut Window) {
-    match window.cursor.grab_mode {
-        CursorGrabMode::None => {
-            window.cursor.grab_mode = CursorGrabMode::Confined;
-            window.cursor.visible = false;
-        }
-        _ => {
-            window.cursor.grab_mode = CursorGrabMode::None;
-            window.cursor.visible = true;
-        }
-    }
-}
-
-fn grab_cursor(
-    keys: Res<ButtonInput<KeyCode>>,
-    mut primary_window: Query<&mut Window, With<PrimaryWindow>>
-) {
-    if let Ok(mut window) = primary_window.get_single_mut() {
-        if keys.just_pressed(KeyCode::Escape) {
-            toggle_grab_cursor(&mut window);
-        }
-    }
-    else {
-        error!("primary window could not be found");
-    }
-}
-
 fn fly_camera_look(
     mut fly_cam: Query<&mut Transform, With<Camera>>,
     camera_settings: Res<FlyCamSettings>,
@@ -124,11 +97,13 @@ fn fly_camera_look(
 
 
 fn setup_flycam(mut commands: Commands) {
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(-3.0, 3.0, 10.0),
+    commands.
+        spawn(FlyCam)
+        .insert(Camera3dBundle {
+            transform: Transform::from_xyz(-3.0, 3.0, 10.0),
+            camera: Camera { is_active: false, ..Default::default() },
         ..Default::default()
-    })
-        .insert(FlyCam);
+    });
 }
 
 pub fn flycam_plugin(app: &mut App) {
@@ -137,7 +112,5 @@ pub fn flycam_plugin(app: &mut App) {
         .insert_resource(InputState::default())
         .add_systems(Startup, setup_flycam)
         .add_systems(FixedUpdate, handle_fly_cam)
-        .add_systems(Update, grab_cursor)
         .add_systems(FixedUpdate, fly_camera_look);
-
 }
