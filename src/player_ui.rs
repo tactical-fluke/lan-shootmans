@@ -1,10 +1,8 @@
 use crate::health::Health;
 use crate::player::Player;
-use bevy::color::palettes::css::{GREEN, RED};
 use bevy::color::Color;
 use bevy::hierarchy::BuildChildren;
 use bevy::prelude::*;
-use bevy::ui::NodeQuery;
 
 pub struct PlayerUiPlugin;
 
@@ -16,10 +14,10 @@ impl Plugin for PlayerUiPlugin {
 }
 
 #[derive(Component)]
-struct PlayerHealthBar;
+pub struct PlayerHealthBar;
 
 #[derive(Component)]
-struct ActiveHealthBar;
+pub struct ActiveHealthBar;
 
 pub fn spawn_player_ui(mut commands: Commands) {
     let health_container = NodeBundle {

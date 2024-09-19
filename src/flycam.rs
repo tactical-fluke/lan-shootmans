@@ -31,7 +31,7 @@ fn handle_fly_cam(
     mut cameras: Query<&mut Transform, With<Camera>>,
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
-    settings: Res<FlyCamSettings>
+    settings: Res<FlyCamSettings>,
 ) {
     for mut camera_transform in &mut cameras {
         let mut translation = Vect::ZERO;
@@ -79,36 +79,37 @@ fn fly_camera_look(
                     CursorGrabMode::None => (),
                     _ => {
                         let window_scale = window.height().min(window.width());
-                        pitch -= (camera_settings.sensitivity * event.delta.y * window_scale).to_radians();
-                        yaw -= (camera_settings.sensitivity * event.delta.x * window_scale).to_radians();
+                        pitch -= (camera_settings.sensitivity * event.delta.y * window_scale)
+                            .to_radians();
+                        yaw -= (camera_settings.sensitivity * event.delta.x * window_scale)
+                            .to_radians();
                     }
                 }
 
                 pitch = pitch.clamp(-1.54, 1.54);
 
-                transform.rotation = Quat::from_axis_angle(Vec3::Y, yaw) * Quat::from_axis_angle(Vec3::X, pitch);
+                transform.rotation =
+                    Quat::from_axis_angle(Vec3::Y, yaw) * Quat::from_axis_angle(Vec3::X, pitch);
             }
         }
-    }
-    else {
+    } else {
         error!("could not find primary window");
     }
 }
 
-
 fn setup_flycam(mut commands: Commands) {
-    commands.
-        spawn(FlyCam)
-        .insert(Camera3dBundle {
-            transform: Transform::from_xyz(-3.0, 3.0, 10.0),
-            camera: Camera { is_active: false, ..Default::default() },
+    commands.spawn(FlyCam).insert(Camera3dBundle {
+        transform: Transform::from_xyz(-3.0, 3.0, 10.0),
+        camera: Camera {
+            is_active: false,
+            ..Default::default()
+        },
         ..Default::default()
     });
 }
 
 pub fn flycam_plugin(app: &mut App) {
-    app
-        .insert_resource(FlyCamSettings::default())
+    app.insert_resource(FlyCamSettings::default())
         .insert_resource(InputState::default())
         .add_systems(Startup, setup_flycam)
         .add_systems(FixedUpdate, handle_fly_cam)

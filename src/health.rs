@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 #[derive(Component)]
-pub struct Health{
+pub struct Health {
     pub max: i32,
     pub current: i32,
 }
@@ -15,17 +15,14 @@ pub struct PotentialDamageEvent {
 
 impl Health {
     pub fn with_max(max: i32) -> Self {
-        Self {
-            max,
-            current: max
-        }
+        Self { max, current: max }
     }
 }
 
 fn handle_damage_events(
     mut damage_events: EventReader<PotentialDamageEvent>,
     mut health_query: Query<&mut Health>,
-    mut commands: Commands
+    mut commands: Commands,
 ) {
     for event in damage_events.read() {
         if let Ok(mut health) = health_query.get_mut(event.entity) {
@@ -39,7 +36,6 @@ fn handle_damage_events(
 }
 
 pub fn health_plugin(app: &mut App) {
-    app
-        .add_event::<PotentialDamageEvent>()
+    app.add_event::<PotentialDamageEvent>()
         .add_systems(Update, handle_damage_events);
 }

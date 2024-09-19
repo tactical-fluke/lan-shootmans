@@ -1,7 +1,14 @@
+use bevy::app::App;
 use bevy::input::ButtonInput;
 use bevy::log::error;
-use bevy::prelude::{KeyCode, Query, Res, Window, With};
+use bevy::prelude::{
+    Deref, DerefMut, KeyCode, PreUpdate, Query, Res, ResMut, Resource, Window, With,
+};
 use bevy::window::{CursorGrabMode, PrimaryWindow};
+
+// Want to avoid grabbing the whole window whenever we wanna make sure the cursor is grabbed
+#[derive(Resource, Deref, DerefMut, Default)]
+pub struct CursorState(CursorGrabMode);
 
 pub fn toggle_grab_cursor(window: &mut Window) {
     match window.cursor.grab_mode {
@@ -18,14 +25,20 @@ pub fn toggle_grab_cursor(window: &mut Window) {
 
 pub fn grab_cursor(
     keys: Res<ButtonInput<KeyCode>>,
-    mut primary_window: Query<&mut Window, With<PrimaryWindow>>
+    mut cursor_state: ResMut<CursorState>,
+    mut primary_window: Query<&mut Window, With<PrimaryWindow>>,
 ) {
     if let Ok(mut window) = primary_window.get_single_mut() {
         if keys.just_pressed(KeyCode::Escape) {
             toggle_grab_cursor(&mut window);
         }
-    }
-    else {
+        **cursor_state = window.cursor.grab_mode;
+    } else {
         error!("primary window could not be found");
     }
+}
+
+pub fn cursor_plugin(app: &mut App) {
+    app.insert_resource(CursorState::default())
+        .add_systems(PreUpdate, grab_cursor);
 }

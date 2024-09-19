@@ -1,19 +1,24 @@
-mod flycam;
-mod player;
-mod health;
 mod cursor;
+mod flycam;
+mod health;
+mod lifetime;
+mod player;
 mod player_ui;
 
-use bevy::pbr::PbrPlugin;
-use bevy::pbr::wireframe::{Wireframe, WireframeConfig, WireframePlugin};
+use crate::cursor::cursor_plugin;
+use crate::health::{health_plugin, Health};
+use crate::lifetime::lifetime_plugin;
+use bevy::pbr::wireframe::WireframePlugin;
 use bevy::prelude::*;
 use bevy::render::render_asset::RenderAssetUsages;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
-use bevy::window::{CursorGrabMode, PrimaryWindow};
 use bevy_rapier3d::prelude::*;
-use crate::health::{Health, health_plugin};
 
-const GRAVITY: Vect = Vect{x:0.0, y: -9.8, z: 0.0 };
+const GRAVITY: Vect = Vect {
+    x: 0.0,
+    y: -9.8,
+    z: 0.0,
+};
 
 fn main() {
     App::new()
@@ -22,39 +27,48 @@ fn main() {
         .add_plugins(RapierDebugRenderPlugin::default())
         .add_plugins(WireframePlugin)
         .add_plugins(health_plugin)
-//        .add_plugins(flycam::flycam_plugin)
+        .add_plugins(lifetime_plugin)
+        .add_plugins(cursor_plugin)
+        //.add_plugins(flycam::flycam_plugin)
         .add_plugins(player::first_person_controller_plugin)
         .add_systems(Startup, setup_world)
         .add_systems(Startup, setup_player)
-        .add_systems(Update, cursor::grab_cursor)
         .run();
 }
 
 fn setup_player(mut commands: Commands) {
-    player::create_player_at_location(&mut commands, Vec3{x: -10.0, y: 2.0, z: 10.0 });
+    player::create_player_at_location(
+        &mut commands,
+        Vec3 {
+            x: -10.0,
+            y: 10.0,
+            z: 10.0,
+        },
+    );
 }
 
 fn setup_world(
     mut commands: Commands,
-    mut physics_config: ResMut<RapierConfiguration>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut images: ResMut<Assets<Image>>,
 ) {
-
     let debug_material = materials.add(StandardMaterial {
         base_color_texture: Some(images.add(uv_debug_texture())),
         ..Default::default()
     });
-    physics_config.gravity = GRAVITY;
 
     // floor
     commands
-        .spawn(Collider::cuboid(100.0, 0.5, 100.0))
+        .spawn(Collider::cuboid(100.0, 0.1, 100.0))
         .insert(PbrBundle {
-            transform: Transform::from_xyz(0.0, -4.0, 0.0),
+            transform: Transform::from_xyz(0.0, 0.1, 0.0),
             mesh: meshes.add(Cuboid {
-                half_size: Vec3{x: 100.0, y: 0.5, z: 100.0},
+                half_size: Vec3 {
+                    x: 100.0,
+                    y: 0.05,
+                    z: 100.0,
+                },
             }),
             material: debug_material.clone(),
             ..Default::default()
@@ -89,7 +103,6 @@ fn setup_world(
         transform: Transform::from_xyz(8.0, 16.0, 8.0),
         ..default()
     });
-
 }
 
 /// Creates a colorful test pattern
@@ -120,5 +133,3 @@ fn uv_debug_texture() -> Image {
         RenderAssetUsages::RENDER_WORLD,
     )
 }
-
-
