@@ -22,7 +22,7 @@ impl Default for FlyCamSettings {
     fn default() -> Self {
         Self {
             speed: 10.0,
-            sensitivity: 0.001,
+            sensitivity: 0.1,
         }
     }
 }
@@ -65,7 +65,7 @@ fn handle_fly_cam(
 }
 
 fn fly_camera_look(
-    mut fly_cam: Query<&mut Transform, With<Camera>>,
+    mut fly_cam: Query<&mut Transform, With<FlyCam>>,
     camera_settings: Res<FlyCamSettings>,
     primary_window: Query<&Window, With<PrimaryWindow>>,
     mut state: ResMut<InputState>,

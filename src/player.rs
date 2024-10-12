@@ -19,17 +19,77 @@ pub struct PlayerCamera;
 #[derive(Bundle)]
 pub struct FirstPersonPlayerBundle {
     controller_marker: Player,
-    physics_basis: RigidBody,
+    spatial: SpatialBundle,
     character_controller: KinematicCharacterController,
     collider: Collider,
-    spatial_bundle: SpatialBundle,
+    health: Health
+}
+
+impl FirstPersonPlayerBundle {
+    pub fn new(transform: Transform) -> Self {
+        Self {
+            spatial: SpatialBundle::from_transform(transform),
+            ..default()
+        }
+    }
+}
+
+impl Default for FirstPersonPlayerBundle {
+    fn default() -> Self {
+        Self {
+            controller_marker: Player,
+            spatial: SpatialBundle {
+                transform: Transform::from_xyz(0., 0., 0.),
+                ..Default::default()
+            },
+            collider: Collider::round_cylinder(0.9, 0.3, 0.2),
+            character_controller: KinematicCharacterController {
+                custom_mass: Some(5.0),
+                up: Vec3::Y,
+                offset: CharacterLength::Absolute(0.01),
+                slide: true,
+                autostep: Some(CharacterAutostep {
+                    max_height: CharacterLength::Relative(0.3),
+                    min_width: CharacterLength::Relative(0.5),
+                    include_dynamic_bodies: false,
+                }),
+                // Don’t allow climbing slopes larger than 45 degrees.
+                max_slope_climb_angle: 45.0_f32.to_radians(),
+                // Automatically slide down on slopes smaller than 30 degrees.
+                min_slope_slide_angle: 30.0_f32.to_radians(),
+                apply_impulse_to_dynamic_bodies: true,
+                snap_to_ground: None,
+                ..default()
+            },
+            health: Health::with_max(100),
+        }
+    }
+}
+
+#[derive(Bundle)]
+pub struct FirstPersonCameraBundle {
+    marker: PlayerCamera,
+    camera: Camera3dBundle,
+}
+
+// Should generally be made as a child of the FirstPersonPlayerBundle, so this entity is offset to the main body
+impl Default for  FirstPersonCameraBundle {
+    fn default() -> Self {
+        Self {
+            marker: PlayerCamera,
+            camera: Camera3dBundle {
+                transform: Transform::from_xyz(0., 0.2, -0.1),
+                ..default()
+            }
+        }
+    }
 }
 
 #[derive(Resource)]
 pub struct PlayerData {
     speed: f32,
     sensitivity: f32,
-    max_fall_speed: f32,
+    jump_speed: f32,
 }
 
 impl Default for PlayerData {
@@ -37,7 +97,7 @@ impl Default for PlayerData {
         Self {
             speed: 20.0,
             sensitivity: 0.1,
-            max_fall_speed: 100.0,
+            jump_speed: 10.0,
         }
     }
 }
@@ -72,6 +132,10 @@ fn handle_player_input(
 
     **movement_input = intended_movement.normalize_or_zero();
 
+    if keys.pressed(KeyCode::Space) {
+        movement_input.y = 1.0;
+    }
+
     for event in mouse_events.read() {
         look_input.x -= event.delta.x * player_data.sensitivity;
         look_input.y -= event.delta.y * player_data.sensitivity;
@@ -101,7 +165,7 @@ fn handle_player_movement(
     let delta_time = time.delta_seconds();
     // Retrieve input
     let mut movement = Vec3::new(movement_input.x, 0.0, movement_input.z) * player_data.speed;
-    let jump_speed = movement_input.y * player_data.max_fall_speed;
+    let jump_speed = movement_input.y * player_data.jump_speed;
     // Clear input
     **movement_input = Vec3::ZERO;
     // Check physics ground check
@@ -119,7 +183,7 @@ fn handle_player_movement(
         }
     }
     movement.y = *vertical_movement;
-    *vertical_movement += GRAVITY.y * delta_time * controller.custom_mass.unwrap_or(1.0);
+    *vertical_movement += GRAVITY * delta_time * controller.custom_mass.unwrap_or(1.0);
     controller.translation = Some(transform.rotation * (movement * delta_time));
 }
 
@@ -145,40 +209,9 @@ fn handle_player_look(
 
 pub fn create_player_at_location(commands: &mut Commands, position: Vec3) {
     commands
-        .spawn((
-            SpatialBundle {
-                transform: Transform::from_translation(position),
-                ..default()
-            },
-            Collider::round_cylinder(0.9, 0.3, 0.2),
-            KinematicCharacterController {
-                custom_mass: Some(5.0),
-                up: Vec3::Y,
-                offset: CharacterLength::Absolute(0.01),
-                slide: true,
-                autostep: Some(CharacterAutostep {
-                    max_height: CharacterLength::Relative(0.3),
-                    min_width: CharacterLength::Relative(0.5),
-                    include_dynamic_bodies: false,
-                }),
-                // Don’t allow climbing slopes larger than 45 degrees.
-                max_slope_climb_angle: 45.0_f32.to_radians(),
-                // Automatically slide down on slopes smaller than 30 degrees.
-                min_slope_slide_angle: 30.0_f32.to_radians(),
-                apply_impulse_to_dynamic_bodies: true,
-                snap_to_ground: None,
-                ..default()
-            },
-        ))
-        .insert(Player)
-        .insert(Health::with_max(100))
+        .spawn(FirstPersonPlayerBundle::new(Transform::from_translation(position)))
         .with_children(|b| {
-            // FPS Camera
-            b.spawn(Camera3dBundle {
-                transform: Transform::from_xyz(0.0, 0.2, -0.1),
-                ..Default::default()
-            })
-            .insert(PlayerCamera);
+            b.spawn(FirstPersonCameraBundle::default());
         });
 }
 

@@ -82,16 +82,12 @@ pub fn handle_player_health_bar(
     mut health_text: Query<&mut Text>,
     mut style_query: Query<&mut Style, With<ActiveHealthBar>>,
 ) {
-    let player_health = if let Ok(player_health) = player_query.get_single() {
-        player_health
-    } else {
+   let Ok(player_health) = player_query.get_single() else {
         error!("could not find player!");
         return;
     };
 
-    let container_children = if let Ok(container) = health_bar_container_query.get_single() {
-        container
-    } else {
+    let Ok(container_children) = health_bar_container_query.get_single() else {
         error!("could not find player health bar!");
         return;
     };
