@@ -5,6 +5,7 @@ mod lifetime;
 mod player;
 mod player_ui;
 mod trenchbroom;
+mod dev_console;
 
 use crate::cursor::cursor_plugin;
 use crate::health::health_plugin;
@@ -13,6 +14,8 @@ use bevy::pbr::wireframe::WireframePlugin;
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 use bevy_trenchbroom::prelude::*;
+use crate::dev_console::developer_console_plugin;
+
 const GRAVITY: f32 = -9.8;
 
 fn main() {
@@ -20,10 +23,12 @@ fn main() {
         .add_plugins(DefaultPlugins.set(ImagePlugin {
             default_sampler: repeating_image_sampler(false),
         }))
+        .add_plugins(bevy_egui::EguiPlugin)
         .add_plugins(TrenchBroomPlugin::new(trenchbroom::trenchbroom_config()))
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugins(RapierDebugRenderPlugin::default())
         .add_plugins(WireframePlugin)
+        .add_plugins(developer_console_plugin)
         .add_plugins(health_plugin)
         .add_plugins(lifetime_plugin)
         .add_plugins(cursor_plugin)

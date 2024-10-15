@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use crate::cursor::CursorState;
 use crate::health::{Health, PotentialDamageEvent};
 use crate::lifetime::Lifetime;
@@ -9,6 +10,7 @@ use bevy::prelude::*;
 use bevy::window::CursorGrabMode;
 use bevy_rapier3d::prelude::*;
 use std::time::Duration;
+use crate::dev_console::{AddConsoleVariable, DeveloperConsole};
 
 #[derive(Component)]
 pub struct Player;
@@ -90,6 +92,7 @@ pub struct PlayerData {
     speed: f32,
     sensitivity: f32,
     jump_speed: f32,
+    noclip: bool
 }
 
 impl Default for PlayerData {
@@ -98,6 +101,7 @@ impl Default for PlayerData {
             speed: 20.0,
             sensitivity: 0.1,
             jump_speed: 10.0,
+            noclip: false
         }
     }
 }
@@ -135,6 +139,9 @@ fn handle_player_input(
     if keys.pressed(KeyCode::Space) {
         movement_input.y = 1.0;
     }
+    if keys.pressed(KeyCode::ControlLeft) {
+        movement_input.y = -1.0;
+    }
 
     for event in mouse_events.read() {
         look_input.x -= event.delta.x * player_data.sensitivity;
@@ -143,10 +150,46 @@ fn handle_player_input(
     }
 }
 
-fn handle_player_movement(
+fn noclip_enabled(player_data: Res<PlayerData>) -> bool {
+    player_data.noclip
+}
+
+fn noclip_disabled(player_data: Res<PlayerData>) -> bool {
+    !player_data.noclip
+}
+
+fn handle_noclip_movement(
+    mut player_query: Query<
+        &mut Transform,
+        With<Player>,
+    >,
+    camera_query: Query<&GlobalTransform, With<PlayerCamera>>,
+    time: Res<Time>,
+    mut movement_input: ResMut<MovementInput>,
+    player_data: Res<PlayerData>,
+) {
+    let Ok(camera_transform) = camera_query.get_single() else {
+        error!("no player camera");
+        return;
+    };
+
+    let Ok(mut transform) = player_query.get_single_mut() else {
+        error!("No player found");
+        return;
+    };
+
+    let movement = Vec3::new(movement_input.x, 0.0, movement_input.y);
+    let mut movement = camera_transform.compute_transform().rotation * movement * time.delta_seconds() * player_data.speed;
+    movement += Vec3::new(0., movement.y, 0.) * player_data.speed;
+    **movement_input = Vec3::ZERO;
+
+    transform.translation += movement;
+}
+
+fn handle_normal_player_movement(
     mut player_query: Query<
         (
-            &mut Transform,
+            &Transform,
             &mut KinematicCharacterController,
             Option<&KinematicCharacterControllerOutput>,
         ),
@@ -282,13 +325,39 @@ fn shootmans(
     }
 }
 
+fn update_noclip(
+    mut last_noclip_value: Local<bool>,
+    console: Res<DeveloperConsole>,
+    mut player_data: ResMut<PlayerData>,
+    player: Query<Entity, With<Player>>,
+    mut commands: Commands
+) {
+    if let Ok(noclip) = console.get_value::<bool>("noclip") {
+        if *last_noclip_value != noclip {
+            let entity = player.get_single().unwrap();
+            if noclip {
+                commands.entity(entity).remove::<Collider>();
+            } else {
+                commands.entity(entity).insert(Collider::round_cylinder(0.9, 0.3, 0.2));
+            }
+            *last_noclip_value = noclip;
+            player_data.noclip = noclip;
+        }
+    }
+}
+
 pub fn first_person_controller_plugin(app: &mut App) {
     app.insert_resource(PlayerData::default())
         .insert_resource(MovementInput::default())
         .insert_resource(LookInput::default())
         .add_systems(PreUpdate, handle_player_input)
-        .add_systems(FixedUpdate, handle_player_movement)
-        .add_systems(FixedUpdate, handle_player_look)
+        .add_systems(FixedUpdate, (
+            handle_normal_player_movement.run_if(noclip_disabled),
+            handle_noclip_movement.run_if(noclip_enabled)
+        ))
+        .add_systems(Update, handle_player_look)
         .add_systems(Update, shootmans)
+        .add_cvar("noclip".into(), false)
+        .add_systems(Update, update_noclip)
         .add_plugins(player_ui::PlayerUiPlugin);
 }
