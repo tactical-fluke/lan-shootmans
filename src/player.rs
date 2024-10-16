@@ -118,7 +118,12 @@ fn handle_player_input(
     mut look_input: ResMut<LookInput>,
     mut mouse_events: EventReader<MouseMotion>,
     player_data: Res<PlayerData>,
+    cursor_state: Res<CursorState>,
 ) {
+    if **cursor_state == CursorGrabMode::None {
+        return;
+    }
+
     let mut intended_movement = Vec3::ZERO;
 
     if keys.pressed(KeyCode::KeyA) {
@@ -225,12 +230,7 @@ fn handle_player_look(
     mut player_query: Query<&mut Transform, With<Player>>,
     mut camera_query: Query<&mut Transform, (With<Camera>, Without<Player>)>,
     look_input: Res<LookInput>,
-    cursor_state: Res<CursorState>,
 ) {
-    if **cursor_state == CursorGrabMode::None {
-        return;
-    }
-
     let Ok(mut transform) = player_query.get_single_mut() else {
         return;
     };
