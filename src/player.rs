@@ -94,7 +94,6 @@ pub struct PlayerData {
     speed: f32,
     sensitivity: f32,
     jump_speed: f32,
-    noclip: bool
 }
 
 impl Default for PlayerData {
@@ -103,7 +102,6 @@ impl Default for PlayerData {
             speed: 20.0,
             sensitivity: 0.1,
             jump_speed: 10.0,
-            noclip: false
         }
     }
 }
@@ -321,7 +319,6 @@ fn shootmans(
 fn update_noclip(
     mut last_noclip_value: Local<bool>,
     console: Res<DeveloperConsole>,
-    mut player_data: ResMut<PlayerData>,
     player: Query<Entity, With<Player>>,
     mut commands: Commands
 ) {
@@ -336,7 +333,6 @@ fn update_noclip(
                     .remove::<Noclip>();
             }
             *last_noclip_value = noclip;
-            player_data.noclip = noclip;
         }
     }
 }
