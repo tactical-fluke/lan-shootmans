@@ -1,4 +1,3 @@
-use std::ops::Deref;
 use crate::cursor::CursorState;
 use crate::health::{Health, PotentialDamageEvent};
 use crate::lifetime::Lifetime;
@@ -17,6 +16,9 @@ pub struct Player;
 
 #[derive(Component)]
 pub struct PlayerCamera;
+
+#[derive(Component)]
+pub struct Noclip;
 
 #[derive(Bundle)]
 pub struct FirstPersonPlayerBundle {
@@ -150,18 +152,10 @@ fn handle_player_input(
     }
 }
 
-fn noclip_enabled(player_data: Res<PlayerData>) -> bool {
-    player_data.noclip
-}
-
-fn noclip_disabled(player_data: Res<PlayerData>) -> bool {
-    !player_data.noclip
-}
-
 fn handle_noclip_movement(
     mut player_query: Query<
         &mut Transform,
-        With<Player>,
+        (With<Player>, With<Noclip>),
     >,
     camera_query: Query<&GlobalTransform, With<PlayerCamera>>,
     time: Res<Time>,
@@ -174,13 +168,12 @@ fn handle_noclip_movement(
     };
 
     let Ok(mut transform) = player_query.get_single_mut() else {
-        error!("No player found");
         return;
     };
 
-    let movement = Vec3::new(movement_input.x, 0.0, movement_input.y);
+    let movement = Vec3::new(movement_input.x, 0., movement_input.z);
     let mut movement = camera_transform.compute_transform().rotation * movement * time.delta_seconds() * player_data.speed;
-    movement += Vec3::new(0., movement.y, 0.) * player_data.speed;
+    movement += Vec3::new(0., movement_input.y, 0.) * player_data.speed * time.delta_seconds();
     **movement_input = Vec3::ZERO;
 
     transform.translation += movement;
@@ -193,7 +186,7 @@ fn handle_normal_player_movement(
             &mut KinematicCharacterController,
             Option<&KinematicCharacterControllerOutput>,
         ),
-        With<Player>,
+        (With<Player>, Without<Noclip>)
     >,
     time: Res<Time>,
     mut movement_input: ResMut<MovementInput>,
@@ -336,9 +329,11 @@ fn update_noclip(
         if *last_noclip_value != noclip {
             let entity = player.get_single().unwrap();
             if noclip {
-                commands.entity(entity).remove::<Collider>();
+                commands.entity(entity).remove::<Collider>()
+                    .insert(Noclip);
             } else {
-                commands.entity(entity).insert(Collider::round_cylinder(0.9, 0.3, 0.2));
+                commands.entity(entity).insert(Collider::round_cylinder(0.9, 0.3, 0.2))
+                    .remove::<Noclip>();
             }
             *last_noclip_value = noclip;
             player_data.noclip = noclip;
@@ -352,8 +347,8 @@ pub fn first_person_controller_plugin(app: &mut App) {
         .insert_resource(LookInput::default())
         .add_systems(PreUpdate, handle_player_input)
         .add_systems(FixedUpdate, (
-            handle_normal_player_movement.run_if(noclip_disabled),
-            handle_noclip_movement.run_if(noclip_enabled)
+            handle_normal_player_movement,
+            handle_noclip_movement
         ))
         .add_systems(Update, handle_player_look)
         .add_systems(Update, shootmans)
