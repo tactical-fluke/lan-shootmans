@@ -8,9 +8,13 @@ pub struct Health {
 
 #[derive(Event)]
 pub struct PotentialDamageEvent {
-    pub entity: Entity,
     pub originating_entity: Entity,
     pub damage: i32,
+}
+
+#[derive(Event)]
+pub struct DeathEvent {
+    originating_entity: Entity,
 }
 
 impl Health {
@@ -20,22 +24,21 @@ impl Health {
 }
 
 fn handle_damage_events(
-    mut damage_events: EventReader<PotentialDamageEvent>,
+    trigger: Trigger<PotentialDamageEvent>,
     mut health_query: Query<&mut Health>,
     mut commands: Commands,
 ) {
-    for event in damage_events.read() {
-        if let Ok(mut health) = health_query.get_mut(event.entity) {
-            health.current -= event.damage;
+    if let Ok(mut health) = health_query.get_mut(trigger.entity()) {
+        health.current -= trigger.event().damage;
 
-            if health.current <= 0 {
-                commands.entity(event.entity).despawn();
-            }
+        if health.current <= 0 {
+            commands.trigger_targets(DeathEvent { originating_entity: trigger.event().originating_entity }, trigger.entity());
         }
     }
 }
 
 pub fn health_plugin(app: &mut App) {
     app.add_event::<PotentialDamageEvent>()
-        .add_systems(Update, handle_damage_events);
+        .add_event::<DeathEvent>()
+        .observe(handle_damage_events);
 }
