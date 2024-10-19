@@ -1,5 +1,5 @@
 use crate::cursor::CursorState;
-use crate::health::{Health, PotentialDamageEvent};
+use crate::health::{DeathEvent, Health, PotentialDamageEvent};
 use crate::lifetime::Lifetime;
 use crate::{player_ui, GRAVITY};
 use bevy::color::palettes::basic::RED;
@@ -158,7 +158,7 @@ fn handle_player_input(
 fn handle_noclip_movement(
     mut player_query: Query<
         &mut Transform,
-        (With<Player>, With<Noclip>),
+        With<Noclip>,
     >,
     camera_query: Query<&GlobalTransform, With<PlayerCamera>>,
     time: Res<Time>,
@@ -257,7 +257,6 @@ fn shootmans(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut damage_event_writer: EventWriter<PotentialDamageEvent>,
 ) {
     let Ok(player_camera_transform) = camera_query.get_single() else {
         error!("could not find camera");
@@ -292,11 +291,10 @@ fn shootmans(
             let hit_point = ray_pos + (ray_direction * toi);
             debug!("Hit entity '{:?}' at pos {}", entity, hit_point);
 
-            damage_event_writer.send(PotentialDamageEvent {
-                entity,
+            commands.trigger_targets(PotentialDamageEvent {
                 damage: 25,
-                originating_entity: player,
-            });
+                originating_entity: player
+            }, entity);
 
             #[cfg(debug_assertions)]
             commands
@@ -314,6 +312,13 @@ fn shootmans(
                 .insert(WireframeColor { color: RED.into() });
         }
     }
+}
+
+pub fn listen_for_death(
+    trigger: Trigger<DeathEvent>,
+    mut commands: Commands,
+) {
+    commands.entity(trigger.entity()).despawn_recursive();
 }
 
 fn update_noclip(
@@ -337,6 +342,21 @@ fn update_noclip(
     }
 }
 
+pub trait MakeEntityPlayer<'w> {
+    fn make_player(&'w mut self, transform: Transform) -> &'w mut Self;
+}
+
+impl<'w> MakeEntityPlayer<'w> for EntityWorldMut<'w> {
+    fn make_player(&mut self, transform: Transform) -> &'w mut EntityWorldMut {
+        self
+            .insert(FirstPersonPlayerBundle::new(transform))
+            .with_children(|builder| {
+                builder.spawn(FirstPersonCameraBundle::default());
+            })
+            .observe(listen_for_death)
+    }
+}
+
 pub fn first_person_controller_plugin(app: &mut App) {
     app.insert_resource(PlayerData::default())
         .insert_resource(MovementInput::default())
@@ -345,7 +365,7 @@ pub fn first_person_controller_plugin(app: &mut App) {
         .add_systems(FixedUpdate, (
             handle_normal_player_movement,
             handle_noclip_movement
-        ))
+        ).after(handle_player_look))
         .add_systems(Update, handle_player_look)
         .add_systems(Update, shootmans)
         .add_cvar("noclip".into(), false)

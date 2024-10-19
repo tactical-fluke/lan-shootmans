@@ -3,9 +3,8 @@ use std::path::Path;
 use bevy_trenchbroom::config::TrenchBroomConfig;
 use bevy_trenchbroom::entity_definitions;
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::*;
 use bevy::log::error;
-use crate::player;
+use crate::player::MakeEntityPlayer;
 
 #[cfg(target_os = "windows")]
 const PATH_SEPARATOR: char = '\\';
@@ -60,10 +59,7 @@ pub fn trenchbroom_config() -> TrenchBroomConfig {
 
             Point player_spawn(size(-16 -16 -32, 16 16 32) color(0 255 0)) {} |world, entity, view| {
                 world.entity_mut(entity)
-                    .insert(player::FirstPersonPlayerBundle::new(view.get_transform()))
-                    .with_children(|parent| {
-                        parent.spawn(player::FirstPersonCameraBundle::default());
-                    });
+                    .make_player(view.get_transform());
             }
         })
 }
