@@ -1,7 +1,8 @@
+use std::collections::VecDeque;
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 use bevy_egui::{egui, EguiContexts};
-use bevy_egui::egui::{Key, ScrollArea, TextBuffer, TextEdit};
+use bevy_egui::egui::{Key, ScrollArea, TextEdit};
 
 pub trait DeveloperConsoleValue: Sized {
     fn dev_console_parse(source: &str) -> Result<Self, String>;
@@ -49,10 +50,19 @@ enum DevConsoleLineSource {
     User
 }
 
+impl DevConsoleLineSource {
+    pub fn get_line_symbol(&self) -> &str {
+        match self {
+            DevConsoleLineSource::System => ">",
+            DevConsoleLineSource::User => "$",
+        }
+    }
+}
+
 #[derive(Resource)]
 pub struct DeveloperConsole {
     values: HashMap<String, String>,
-    lines: Vec<(DevConsoleLineSource, String)>,
+    lines: VecDeque<(DevConsoleLineSource, String)>,
     history_allowed: usize,
     show: bool,
     buf: String
@@ -62,7 +72,7 @@ impl DeveloperConsole {
     pub fn new(history_allowed: usize) -> DeveloperConsole {
         Self {
             values: HashMap::new(),
-            lines: vec![],
+            lines: VecDeque::with_capacity(history_allowed),
             history_allowed,
             show: false,
             buf: String::new()
@@ -84,9 +94,9 @@ impl DeveloperConsole {
     }
 
     fn push_line(&mut self, line: (DevConsoleLineSource, String)) {
-        self.lines.insert(1, line);
+        self.lines.push_back(line);
         if self.lines.len() > self.history_allowed {
-            self.lines.pop().unwrap();
+            self.lines.pop_front();
         }
     }
 }
@@ -116,10 +126,12 @@ fn dev_console_ui(mut ctx: EguiContexts, mut developer_console: ResMut<Developer
                         .max_height(scroll_height)
                         .show(ui, |ui| {
                             for line in &developer_console.lines {
-                                ui.label(line.1.clone());
+                                ui.label(format!("{}{}", line.0.get_line_symbol(), line.1));
                             }
                         });
                 });
+
+                ui.separator();
 
                 let text_edit = TextEdit::singleline(&mut developer_console.buf)
                     .desired_width(f32::INFINITY)
@@ -133,6 +145,7 @@ fn dev_console_ui(mut ctx: EguiContexts, mut developer_console: ResMut<Developer
                         developer_console.push_line((DevConsoleLineSource::User, String::new()));
                     } else {
                         let command = developer_console.buf.trim().to_string();
+                        developer_console.push_line((DevConsoleLineSource::User, command.clone()));
                         let tokens = command.split(" ").collect::<Vec<&str>>();
                         if tokens.len() < 2 {
                             developer_console.push_line((DevConsoleLineSource::System, format!("Incorrect command: {:?}", tokens)));
