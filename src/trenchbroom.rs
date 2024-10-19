@@ -57,7 +57,7 @@ pub fn trenchbroom_config() -> TrenchBroomConfig {
                 });
             }
 
-            Point player_spawn(size(-16 -16 -32, 16 16 32) color(0 255 0)) {} |world, entity, view| {
+            Point player_spawn(size(-20 -20 -46, 20 20 34) color(0 255 0)) {} |world, entity, view| {
                 world.entity_mut(entity)
                     .make_player(view.get_transform());
             }
