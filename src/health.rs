@@ -39,5 +39,6 @@ fn handle_damage_events(
 
 pub fn health_plugin(app: &mut App) {
     app.add_event::<PotentialDamageEvent>()
+        .add_event::<DeathEvent>()
         .observe(handle_damage_events);
 }
