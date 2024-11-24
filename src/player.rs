@@ -1,7 +1,7 @@
 use crate::cursor::CursorState;
 use crate::health::{DeathEvent, Health, PotentialDamageEvent};
 use crate::lifetime::Lifetime;
-use crate::{player_ui, GRAVITY};
+use crate::{player_ui, config::GRAVITY};
 use bevy::color::palettes::basic::RED;
 use bevy::input::mouse::MouseMotion;
 use bevy::pbr::wireframe::{Wireframe, WireframeColor};
