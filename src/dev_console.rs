@@ -160,13 +160,13 @@ fn dev_console_ui(mut ctx: EguiContexts, mut developer_console: ResMut<Developer
 }
 
 pub trait AddConsoleVariable {
-    fn add_cvar<T: DeveloperConsoleValue + Copy + Send + Sync + 'static>(&mut self, key: String, value: T) -> &mut Self;
+    fn add_cvar<T: DeveloperConsoleValue + Copy + Send + Sync + 'static>(&mut self, key: &'static str, value: T) -> &mut Self;
 }
 
 impl AddConsoleVariable for App {
-    fn add_cvar<T: DeveloperConsoleValue + Copy + Send + Sync + 'static>(&mut self, key: String, value: T) -> &mut Self {
+    fn add_cvar<T: DeveloperConsoleValue + Copy + Send + Sync + 'static>(&mut self, key: &'static str, value: T) -> &mut Self {
         let system = move |mut developer_console: ResMut<DeveloperConsole>| {
-            developer_console.set_value(key.as_str(), value);
+            developer_console.set_value(key, value);
         };
 
         self.add_systems(Startup, system)

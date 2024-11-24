@@ -368,7 +368,7 @@ pub fn first_person_controller_plugin(app: &mut App) {
         ).after(handle_player_look))
         .add_systems(Update, handle_player_look)
         .add_systems(Update, shootmans)
-        .add_cvar("noclip".into(), false)
+        .add_cvar("noclip", false)
         .add_systems(Update, update_noclip)
         .add_plugins(player_ui::PlayerUiPlugin);
 }
