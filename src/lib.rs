@@ -7,3 +7,4 @@ pub mod player;
 pub mod player_ui;
 pub mod trenchbroom;
 pub mod config;
+pub mod netcode;

@@ -19,6 +19,7 @@ fn main() {
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::default())
         .add_plugins(RapierDebugRenderPlugin::default())
         .add_plugins(WireframePlugin)
+        .add_plugins(lan_shootmans::netcode::client_plugin)
         .add_plugins(developer_console_plugin)
         .add_plugins(health_plugin)
         .add_plugins(lifetime_plugin)
